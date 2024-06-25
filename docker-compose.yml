@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:14.1-alpine
+    container_name: exchanger_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=localhost
+    ports:
+      - 5432:5432
+    volumes:
+      - ./initial-setup-db.sql:/docker-entrypoint-initdb.d/init.sql 
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  api:
+    container_name: exchanger-api
+    build:
+      context: ./
+    image: exchanger-api
+    depends_on:
+      db:
+        condition: service_healthy  
+    ports:
+      - 8080:8080
+    environment:
+      - EXCHANGER_DSN=postgres://exchanger:pa55word@exchanger_db/exchanger?sslmode=disable
+      - EXCHANGER_SMTP_HOST=smtp.example.host
+      - EXCHANGER_SMTP_PORT=25
+      - EXCHANGER_SMTP_USERNAME=smtpexmapleuser
+      - EXCHANGER_SMTP_PASSWORD=secretpasword
+      - EXCHANGER_SMTP_SENDER=exchangerteam@rate.com
+    links:
+      - db
+volumes:
+  db:
+    driver: local

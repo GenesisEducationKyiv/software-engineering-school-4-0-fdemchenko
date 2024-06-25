@@ -1,0 +1,22 @@
+{{define "subject"}}Exchange rate update!{{end}}
+
+{{define "plainBody"}}
+Hi,
+Current USD to UAH exchage rate is {{.}}
+The Exchager Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    </head>
+    <body>
+        <p>Hi,</p>
+        <p>Current USD to UAH exchage rate is {{.}}</p>
+        <p>The Exchager Team</p>
+    </body>
+</html>
+{{end}}
