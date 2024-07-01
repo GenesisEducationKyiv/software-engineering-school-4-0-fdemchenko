@@ -35,6 +35,18 @@ func TestEmailService_CreateEmails(t *testing.T) {
 	}
 }
 
+func TestEmailService_CaseInsensitiveness(t *testing.T) {
+	emailRepo := new(EmailRepositoryMock)
+	emails := []string{"example@mail.com", "EXamPlE@maIl.Com"}
+
+	emailService := NewEmailService(emailRepo)
+	err := emailService.Create(emails[0])
+	assert.NoError(t, err)
+
+	err = emailService.Create(emails[1])
+	assert.ErrorIs(t, err, repositories.ErrDuplicateEmail)
+}
+
 func TestEmailService_GetEmails(t *testing.T) {
 	emailRepo := new(EmailRepositoryMock)
 	emails := []string{"example@mail.com", "school@edu.ua"}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/fdemchenko/exchanger/internal/repositories"
@@ -24,7 +23,10 @@ func (app *application) getRate(w http.ResponseWriter, r *http.Request) {
 		app.serverError(w, err)
 		return
 	}
-	fmt.Fprintf(w, "%f", rate)
+	err = app.writeJSON(w, envelope{"rate": rate}, http.StatusOK)
+	if err != nil {
+		app.serverError(w, err)
+	}
 }
 
 func (app *application) subscribe(w http.ResponseWriter, r *http.Request) {

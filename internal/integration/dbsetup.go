@@ -16,7 +16,7 @@ const (
 	ContainerStartTimeout = 10 * time.Second
 )
 
-func createTestDBContainer() (*postgres.PostgresContainer, error) {
+func CreateTestDBContainer() (*postgres.PostgresContainer, error) {
 	ctx := context.Background()
 
 	dbName := "test"

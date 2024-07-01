@@ -20,7 +20,8 @@ func (em *PostgresEmailRepository) Insert(email string) error {
 		var pgError *pq.Error
 		if errors.As(err, &pgError) {
 			// unique constraint error
-			if pgError.Code == "23505" && strings.Contains(pgError.Message, "emails_email_key") {
+			if pgError.Code == pq.ErrorCode(PostgreSQLUniqueViolationErrorCode) &&
+				strings.Contains(pgError.Message, "emails_email_key") {
 				return ErrDuplicateEmail
 			}
 		}

@@ -1,5 +1,7 @@
 package services
 
+import "strings"
+
 type EmailRepository interface {
 	Insert(email string) error
 	GetAll() ([]string, error)
@@ -14,6 +16,8 @@ func NewEmailService(emailRepository EmailRepository) *emailServiceImpl {
 }
 
 func (es *emailServiceImpl) Create(email string) error {
+	// email is case insensitive
+	email = strings.ToLower(email)
 	return es.emailRepository.Insert(email)
 }
 

@@ -18,7 +18,7 @@ Run `go test ./...` to run all tests, including integration ones (require docker
 
 ## TODO
 
-- [ ] Graceful server shutdown
+- [x] Graceful server shutdown
 - [ ] SSL encryption
 - [ ] Parallel emails sending
 
