@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/fdemchenko/exchanger/internal/repositories"
+	"github.com/fdemchenko/exchanger/cmd/web/internal/repositories"
 	"github.com/stretchr/testify/assert"
 )
 
