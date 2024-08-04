@@ -24,8 +24,8 @@ func CreateTestDBContainer() (*postgres.PostgresContainer, error) {
 	dbUser := "testuser"
 	dbPassword := "postgres"
 
-	postgresContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("docker.io/postgres:16-alpine"),
+	postgresContainer, err := postgres.Run(ctx,
+		"docker.io/postgres:16-alpine",
 		postgres.WithDatabase(dbName),
 		postgres.WithUsername(dbUser),
 		postgres.WithPassword(dbPassword),
