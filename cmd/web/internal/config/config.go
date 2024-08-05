@@ -7,7 +7,7 @@ type Config struct {
 	DB                 DataStore     `yaml:"data-store"`
 	RateCacheTTL       time.Duration `yaml:"rate-cache-ttl" env-default:"10m"`
 	RabbitMQConnString string        `yaml:"rabbitmq-addr" env-required:"true"`
-	Env                string        `yaml"env" env-default:"local"`
+	Env                string        `yaml:"env" env-default:"local"`
 }
 
 type HTTPServer struct {
