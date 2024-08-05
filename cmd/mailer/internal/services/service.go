@@ -22,11 +22,11 @@ type MailerService struct {
 }
 
 func NewMailerService(
-	cfg config.SMTPConfig,
+	smtpCfg config.SMTPServer,
 ) *MailerService {
-	dialer := mail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
+	dialer := mail.NewDialer(smtpCfg.Host, smtpCfg.Port, smtpCfg.Username, smtpCfg.Password)
 
-	cfg.ConnectionPoolSize = int(math.Min(MaxConcurrentSMTPConn, float64(cfg.ConnectionPoolSize)))
+	smtpCfg.ConnectionPoolSize = int(math.Min(MaxConcurrentSMTPConn, float64(smtpCfg.ConnectionPoolSize)))
 
 	errorsChan := make(chan error)
 
@@ -38,7 +38,7 @@ func NewMailerService(
 
 	return &MailerService{
 		dialer:            dialer,
-		sender:            cfg.Sender,
+		sender:            smtpCfg.Sender,
 		currencyTemplates: make(map[string]string),
 		parsedTemplate:    template.Must(template.New("email").Parse(templates.MessageTemplate)),
 		jobsChan:          make(chan *mail.Message),

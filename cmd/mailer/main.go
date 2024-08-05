@@ -8,25 +8,20 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/fdemchenko/exchanger/cmd/mailer/internal/config"
+	mailerconfig "github.com/fdemchenko/exchanger/cmd/mailer/internal/config"
 	"github.com/fdemchenko/exchanger/cmd/mailer/internal/messaging"
 	"github.com/fdemchenko/exchanger/cmd/mailer/internal/services"
 	"github.com/fdemchenko/exchanger/internal/communication"
 	"github.com/fdemchenko/exchanger/internal/communication/mailer"
 	"github.com/fdemchenko/exchanger/internal/communication/rabbitmq"
+	"github.com/fdemchenko/exchanger/internal/config"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	DefaultMailerConnectionPoolSize = 3
-	EveryDayAt10AMCRON              = "0 0 10 * * *"
-	ReadHeaderTimeout               = 5 * time.Second
-)
-
 func main() {
-	cfg := config.LoadConfig()
+	cfg := config.MustLoad[mailerconfig.Config](os.Getenv("MAILER_CONFIG_PATH"))
 	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQConnString)
 	if err != nil {
 		log.Fatal().Err(err).Send()
@@ -42,12 +37,12 @@ func main() {
 		log.Fatal().Err(err).Send()
 	}
 
-	mailerService := services.NewMailerService(cfg.SMTP)
-	mailerService.StartWorkers(cfg.SMTP.ConnectionPoolSize)
+	mailerService := services.NewMailerService(cfg.SMTPServer)
+	mailerService.StartWorkers(cfg.SMTPServer.ConnectionPoolSize)
 
 	producer := rabbitmq.NewGenericProducer(emailsTriggersChannel)
 	c := cron.New()
-	err = c.AddFunc(EveryDayAt10AMCRON, func() {
+	err = c.AddFunc(cfg.SchedulerCRON, func() {
 		msg := communication.Message[struct{}]{
 			MessageHeader: communication.MessageHeader{Type: mailer.StartEmailSending, Timestamp: time.Now()},
 		}
@@ -71,9 +66,9 @@ func main() {
 		metrics.WritePrometheus(w, false)
 	})
 	s := http.Server{
-		Addr:              cfg.HTTPAddr,
+		ReadHeaderTimeout: cfg.HTTPServer.Timeout,
+		Addr:              cfg.HTTPServer.Addr,
 		Handler:           mux,
-		ReadHeaderTimeout: ReadHeaderTimeout,
 	}
 	go func() {
 		err := s.ListenAndServe()
