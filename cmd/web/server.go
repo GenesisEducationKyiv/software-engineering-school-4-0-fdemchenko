@@ -17,9 +17,9 @@ const ServerShutdownTimeout = 5 * time.Second
 func (app *application) serveHTTP() error {
 	server := http.Server{
 		Handler:           app.routes(),
-		Addr:              app.cfg.addr,
-		WriteTimeout:      ServerTimeout,
-		ReadHeaderTimeout: ServerTimeout,
+		Addr:              app.cfg.HTTPServer.Addr,
+		WriteTimeout:      app.cfg.HTTPServer.Timeout,
+		ReadHeaderTimeout: app.cfg.HTTPServer.Timeout,
 	}
 
 	shutdownErrors := make(chan error)

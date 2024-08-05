@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"flag"
 	"os"
 	"time"
 
+	webconfig "github.com/fdemchenko/exchanger/cmd/web/internal/config"
 	"github.com/fdemchenko/exchanger/cmd/web/internal/messaging"
 	"github.com/fdemchenko/exchanger/cmd/web/internal/repositories"
 	"github.com/fdemchenko/exchanger/cmd/web/internal/services"
@@ -13,6 +13,7 @@ import (
 	"github.com/fdemchenko/exchanger/internal/communication/customers"
 	"github.com/fdemchenko/exchanger/internal/communication/mailer"
 	"github.com/fdemchenko/exchanger/internal/communication/rabbitmq"
+	"github.com/fdemchenko/exchanger/internal/config"
 	"github.com/fdemchenko/exchanger/internal/database"
 	"github.com/fdemchenko/exchanger/migrations"
 	_ "github.com/lib/pq"
@@ -20,16 +21,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
-
-type config struct {
-	addr string
-	db   struct {
-		dsn            string
-		maxConnections int
-	}
-	mailerUpdateInterval time.Duration
-	rabbitMQConnString   string
-}
 
 type RateService interface {
 	GetRate(context.Context, string) (float32, error)
@@ -43,25 +34,16 @@ type EmailService interface {
 }
 
 type application struct {
-	cfg              config
+	cfg              *webconfig.Config
 	rateService      RateService
 	emailService     EmailService
 	customerProducer *rabbitmq.GenericProducer
 }
 
-const (
-	ServerTimeout           = 10 * time.Second
-	DefaultMaxDBConnections = 25
-	DefaultMailerInterval   = 24 * time.Hour
-	RateCachingDuration     = 15 * time.Minute
-)
-
 func main() {
-	cfg := initConfig()
-
+	cfg := config.MustLoad[webconfig.Config](os.Getenv("WEB_CONFIG_PATH"))
 	zerolog.TimeFieldFormat = time.RFC3339
-
-	db, err := database.OpenDB(cfg.db.dsn, database.Options{MaxOpenConnections: cfg.db.maxConnections})
+	db, err := database.OpenDB(cfg.DB.DSN, database.Options{MaxOpenConnections: cfg.DB.MaxConnections})
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -73,7 +55,7 @@ func main() {
 	}
 	log.Info().Msg("Migrations successfully applied")
 
-	rabbitMQConn, err := amqp.Dial(cfg.rabbitMQConnString)
+	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQConnString)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -92,7 +74,7 @@ func main() {
 			rate.NewFawazRateFetcher("fawaz fetcher"),
 			rate.NewPrivatRateFetcher("privat fetcher"),
 		),
-		rate.WithUpdateInterval(RateCachingDuration),
+		rate.WithUpdateInterval(cfg.RateCacheTTL),
 	)
 
 	checkCustomersCreationChannel, err := rabbitmq.OpenWithQueueName(
@@ -131,7 +113,7 @@ func main() {
 		customerProducer: customersProducer,
 	}
 
-	log.Info().Str("address", app.cfg.addr).Msg("Web server started")
+	log.Info().Str("address", cfg.HTTPServer.Addr).Msg("Web server started")
 	err = app.serveHTTP()
 	if err != nil {
 		log.Fatal().Err(err).Send()
@@ -144,19 +126,4 @@ func main() {
 	if err := db.Close(); err != nil {
 		log.Error().Err(err).Msg("Cannot close DB connection")
 	}
-}
-
-func initConfig() config {
-	var cfg config
-	cfg.mailerUpdateInterval = DefaultMailerInterval
-	flag.StringVar(&cfg.addr, "addr", ":8080", "http listen address")
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("EXCHANGER_DSN"), "Data source name")
-	flag.IntVar(&cfg.db.maxConnections, "db-max-conn", DefaultMaxDBConnections, "Database max connection")
-	flag.StringVar(&cfg.rabbitMQConnString,
-		"rabbitmq-conn-string",
-		os.Getenv("EXCHANGER_RABBITMQ_CONN_STRING"),
-		"RabbitMQ connection string",
-	)
-	flag.Parse()
-	return cfg
 }
