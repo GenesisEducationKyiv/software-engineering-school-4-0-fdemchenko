@@ -1,1 +1,2 @@
 config/*.local.yml
+docker-compose.local.yml
