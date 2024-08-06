@@ -35,13 +35,6 @@ services:
     build:
       context: ./
       dockerfile: ./cmd/mailer/Dockerfile
-    environment:
-      - EXCHANGER_SMTP_HOST=smtp.example.host
-      - EXCHANGER_SMTP_PORT=25
-      - EXCHANGER_SMTP_USERNAME=smtpexmapleuser
-      - EXCHANGER_SMTP_PASSWORD=secretpasword
-      - EXCHANGER_SMTP_SENDER=exchangerteam@rate.com
-      - EXCHANGER_RABBITMQ_CONN_STRING=amqp://guest:guest@rabbitmq:5672
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -50,9 +43,6 @@ services:
     build:
       context: ./
       dockerfile: ./cmd/customers/Dockerfile
-    environment:
-      - EXCHANGER_RABBITMQ_CONN_STRING=amqp://guest:guest@rabbitmq:5672
-      - EXCHANGER_CUSTOMERS_DSN=postgres://customers_service:pa55word@exchanger_db/customers_service?sslmode=disable
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -71,9 +61,6 @@ services:
         condition: service_healthy
     ports:
       - 8080:8080
-    environment:
-      - EXCHANGER_DSN=postgres://exchanger:pa55word@exchanger_db/exchanger?sslmode=disable
-      - EXCHANGER_RABBITMQ_CONN_STRING=amqp://guest:guest@rabbitmq:5672
     links:
       - db
   vm:
