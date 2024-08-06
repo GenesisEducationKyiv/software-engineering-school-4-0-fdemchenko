@@ -8,7 +8,7 @@ type Config struct {
 	SMTPServer         SMTPServer `yaml:"smtp-server"`
 	HTTPServer         HTTPServer `yaml:"http-server"`
 	Env                string     `yaml:"env"`
-	RabbitMQConnString string     `yaml:"rabbitmq-addr" env-required:"true"`
+	RabbitMQConnString string     `yaml:"rabbitmq-addr" env:"MAILER_RABBITMQ_CONN_STR" env-required:"true"`
 	SchedulerCRON      string     `yaml:"scheduler-cron" env-default:"0 0 10 * * *"`
 }
 
@@ -25,8 +25,3 @@ type SMTPServer struct {
 	Sender             string `yaml:"sender" env-required:"true"`
 	ConnectionPoolSize int    `yaml:"connection-pool-size" env-default:"3"`
 }
-
-const (
-	DefaultRabbitMQPort      = 5672
-	DefaultSchedulerInterval = 24 * time.Hour
-)

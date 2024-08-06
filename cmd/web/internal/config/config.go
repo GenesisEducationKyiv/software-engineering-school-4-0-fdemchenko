@@ -6,7 +6,7 @@ type Config struct {
 	HTTPServer         HTTPServer    `yaml:"http-server"`
 	DB                 DataStore     `yaml:"data-store"`
 	RateCacheTTL       time.Duration `yaml:"rate-cache-ttl" env-default:"10m"`
-	RabbitMQConnString string        `yaml:"rabbitmq-addr" env-required:"true"`
+	RabbitMQConnString string        `yaml:"rabbitmq-addr" env:"RATE_RABBITMQ_CONN_STR" env-required:"true"`
 	Env                string        `yaml:"env" env-default:"local"`
 }
 
@@ -16,6 +16,6 @@ type HTTPServer struct {
 }
 
 type DataStore struct {
-	DSN            string `yaml:"dsn" env-required:"true"`
+	DSN            string `yaml:"dsn" env:"RATE_DSN" env-required:"true"`
 	MaxConnections int    `yaml:"max-connections" env-default:"25"`
 }
