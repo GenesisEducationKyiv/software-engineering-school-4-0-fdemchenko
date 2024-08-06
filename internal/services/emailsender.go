@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fdemchenko/exchanger/internal/communication"
 	"github.com/fdemchenko/exchanger/internal/communication/mailer"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
@@ -15,69 +16,42 @@ type RateService interface {
 }
 
 type EmailService interface {
-	Create(email string) error
+	Create(email string) (int, error)
 	GetAll() ([]string, error)
 }
 
-type RabbitMQEmailScheduler struct {
+type RabbitMQEmailSender struct {
 	emailService EmailService
 	rateService  RateService
 	channel      *amqp.Channel
-	queueName    string
-	stopChan     chan bool
 }
 
-func NewEmailScheduler(
+func NewRabbitMQEmailSender(
 	emailService EmailService,
 	rateService RateService,
 	channel *amqp.Channel,
-	queueName string,
-) *RabbitMQEmailScheduler {
-	return &RabbitMQEmailScheduler{
+) *RabbitMQEmailSender {
+	return &RabbitMQEmailSender{
 		rateService:  rateService,
 		emailService: emailService,
-		stopChan:     make(chan bool),
 		channel:      channel,
-		queueName:    queueName,
 	}
 }
 
-func (es *RabbitMQEmailScheduler) StartBackhroundTask(updateInterval time.Duration) {
-	ticker := time.NewTicker(updateInterval)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				err := es.sendMessages()
-				if err != nil {
-					log.Error().Err(err).Send()
-				}
-			case <-es.stopChan:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-}
-
-func (es *RabbitMQEmailScheduler) StopBackgroundTask() {
-	es.stopChan <- true
-}
-
-func (es *RabbitMQEmailScheduler) sendMessages() error {
+func (es *RabbitMQEmailSender) SendMessages() error {
 	rate, err := es.rateService.GetRate(context.Background(), "usd")
 	if err != nil {
 		return err
 	}
-	rateUpdateMessage := mailer.Message[mailer.ExchangeRateUpdatedEvent]{
-		MessageHeader: mailer.MessageHeader{Type: mailer.ExchangeRateUpdated, Timestamp: time.Now()},
+	rateUpdateMessage := communication.Message[mailer.ExchangeRateUpdatedEvent]{
+		MessageHeader: communication.MessageHeader{Type: mailer.ExchangeRateUpdated, Timestamp: time.Now()},
 		Payload:       mailer.ExchangeRateUpdatedEvent{Rate: rate},
 	}
 	bytes, err := json.Marshal(rateUpdateMessage)
 	if err != nil {
 		return err
 	}
-	err = es.channel.Publish("", es.queueName, false, false,
+	err = es.channel.Publish("", mailer.RateEmailsQueue, false, false,
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        bytes,
@@ -93,15 +67,15 @@ func (es *RabbitMQEmailScheduler) sendMessages() error {
 	}
 
 	for _, email := range emails {
-		sendEmailMessage := mailer.Message[mailer.SendEmailNotificationCommand]{
-			MessageHeader: mailer.MessageHeader{Type: mailer.SendEmailNotification, Timestamp: time.Now()},
+		sendEmailMessage := communication.Message[mailer.SendEmailNotificationCommand]{
+			MessageHeader: communication.MessageHeader{Type: mailer.SendEmailNotification, Timestamp: time.Now()},
 			Payload:       mailer.SendEmailNotificationCommand{Email: email},
 		}
 		bytes, err := json.Marshal(sendEmailMessage)
 		if err != nil {
 			continue
 		}
-		err = es.channel.Publish("", es.queueName, false, false,
+		err = es.channel.Publish("", mailer.RateEmailsQueue, false, false,
 			amqp.Publishing{
 				ContentType: "application/json",
 				Body:        bytes,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fdemchenko/exchanger/internal/database"
+	"github.com/fdemchenko/exchanger/migrations"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -44,7 +45,7 @@ func CreateTestDBContainer() (*postgres.PostgresContainer, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = database.AutoMigrate(db, true)
+	err = database.AutoMigrate(db, migrations.RatesMigrationsFS, "rates", "exchanger", true)
 	if err != nil {
 		return nil, err
 	}

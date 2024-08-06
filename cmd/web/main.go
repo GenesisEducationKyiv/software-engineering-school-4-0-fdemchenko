@@ -2,18 +2,21 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"flag"
 	"os"
 	"time"
 
+	"github.com/fdemchenko/exchanger/cmd/web/internal/messaging"
+	"github.com/fdemchenko/exchanger/internal/communication/customers"
 	"github.com/fdemchenko/exchanger/internal/communication/mailer"
 	"github.com/fdemchenko/exchanger/internal/communication/rabbitmq"
 	"github.com/fdemchenko/exchanger/internal/database"
 	"github.com/fdemchenko/exchanger/internal/repositories"
 	"github.com/fdemchenko/exchanger/internal/services"
 	"github.com/fdemchenko/exchanger/internal/services/rate"
+	"github.com/fdemchenko/exchanger/migrations"
 	_ "github.com/lib/pq"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -33,14 +36,17 @@ type RateService interface {
 }
 
 type EmailService interface {
-	Create(email string) error
+	Create(email string) (int, error)
 	GetAll() ([]string, error)
+	DeleteByEmail(email string) error
+	DeleteByID(id int) error
 }
 
 type application struct {
-	cfg          config
-	rateService  RateService
-	emailService EmailService
+	cfg              config
+	rateService      RateService
+	emailService     EmailService
+	customerProducer *rabbitmq.GenericProducer
 }
 
 const (
@@ -55,23 +61,30 @@ func main() {
 
 	zerolog.TimeFieldFormat = time.RFC3339
 
-	db, err := openDB(cfg)
+	db, err := database.OpenDB(cfg.db.dsn, database.Options{MaxOpenConnections: cfg.db.maxConnections})
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
 	log.Info().Msg("Coonected to DB successfully")
 
-	err = database.AutoMigrate(db, false)
+	err = database.AutoMigrate(db, migrations.RatesMigrationsFS, "rates", "exchanger", false)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
 
-	ch, err := rabbitmq.OpenWithQueueName(cfg.rabbitMQConnString, mailer.QueueName)
+	rabbitMQConn, err := amqp.Dial(cfg.rabbitMQConnString)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
-	emailRepository := &repositories.PostgresEmailRepository{DB: db}
-	emailService := services.NewEmailService(emailRepository)
+	log.Info().Msg("Coonected to RabbitMQ successfully")
+
+	createCustomersChannel, err := rabbitmq.OpenWithQueueName(rabbitMQConn, customers.CreateCustomerRequestQueue)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+	customersProducer := rabbitmq.NewGenericProducer(createCustomersChannel)
+	subscriptionRepository := &repositories.PostgresSubscriptionRepository{DB: db}
+	emailService := services.NewSubscriptionService(subscriptionRepository)
 	rateService := rate.NewRateService(
 		rate.WithFetchers(
 			rate.NewNBURateFetcher("nbu fetcher"),
@@ -81,19 +94,54 @@ func main() {
 		rate.WithUpdateInterval(RateCachingDuration),
 	)
 
-	emailScheduler := services.NewEmailScheduler(emailService, rateService, ch, mailer.QueueName)
-	emailScheduler.StartBackhroundTask(cfg.mailerUpdateInterval)
+	checkCustomersCreationChannel, err := rabbitmq.OpenWithQueueName(
+		rabbitMQConn,
+		customers.CreateCustomerResponseQueue,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
+	customersSAGAConsumer := messaging.NewCustomerCreationSAGAConsumer(
+		checkCustomersCreationChannel,
+		subscriptionRepository,
+	)
+
+	err = customersSAGAConsumer.StartListening()
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+
+	rateEmailsChannel, err := rabbitmq.OpenWithQueueName(rabbitMQConn, mailer.RateEmailsQueue)
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
+	emailsSender := services.NewRabbitMQEmailSender(emailService, rateService, rateEmailsChannel)
+	triggerConsumer := messaging.NewEmailTriggerConsumer(rateEmailsChannel, emailsSender)
+	err = triggerConsumer.StartListening()
+	if err != nil {
+		log.Fatal().Err(err).Send()
+	}
 
 	app := application{
-		cfg:          cfg,
-		rateService:  rateService,
-		emailService: emailService,
+		cfg:              cfg,
+		rateService:      rateService,
+		emailService:     emailService,
+		customerProducer: customersProducer,
 	}
 
 	log.Info().Str("address", app.cfg.addr).Msg("Web server started")
 	err = app.serveHTTP()
 	if err != nil {
 		log.Fatal().Err(err).Send()
+	}
+
+	if err := rabbitMQConn.Close(); err != nil {
+		log.Error().Err(err).Msg("Cannot close RabbitMQ connection")
+	}
+
+	if err := db.Close(); err != nil {
+		log.Error().Err(err).Msg("Cannot close DB connection")
 	}
 }
 
@@ -108,33 +156,6 @@ func initConfig() config {
 		os.Getenv("EXCHANGER_RABBITMQ_CONN_STRING"),
 		"RabbitMQ connection string",
 	)
-
-	flag.Func("mailer-interval", "Email update interval (E.g. 24h, 1h30m)", func(s string) error {
-		if s == "" {
-			cfg.mailerUpdateInterval = DefaultMailerInterval
-			return nil
-		}
-		duration, err := time.ParseDuration(s)
-		if err != nil {
-			return err
-		}
-		cfg.mailerUpdateInterval = duration
-		return nil
-	})
 	flag.Parse()
 	return cfg
-}
-
-func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	err = db.Ping()
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(cfg.db.maxConnections)
-	return db, nil
 }

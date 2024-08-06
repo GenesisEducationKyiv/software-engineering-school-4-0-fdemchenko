@@ -1,13 +1,11 @@
-package main
+package services
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"math"
 	"text/template"
 
-	"github.com/fdemchenko/exchanger/internal/communication/mailer"
+	"github.com/fdemchenko/exchanger/cmd/mailer/internal/config"
 	"github.com/fdemchenko/exchanger/web/templates"
 	"github.com/go-mail/mail/v2"
 	"github.com/rs/zerolog/log"
@@ -23,7 +21,7 @@ type MailerService struct {
 }
 
 func NewMailerService(
-	cfg SMTPConfig,
+	cfg config.SMTPConfig,
 ) *MailerService {
 	dialer := mail.NewDialer(cfg.Host, cfg.Port, cfg.Username, cfg.Password)
 
@@ -47,7 +45,7 @@ func NewMailerService(
 	}
 }
 
-func (ms *MailerService) updateCurrencyRateTemplates(rate float32) error {
+func (ms *MailerService) UpdateCurrencyRateTemplates(rate float32) error {
 	templateNames := []string{"subject", "plainBody", "htmlBody"}
 	templateBuffer := new(bytes.Buffer)
 	for _, templatesName := range templateNames {
@@ -67,7 +65,7 @@ func (ms *MailerService) StartWorkers(connectionPoolSize int) {
 	}
 }
 
-func (ms *MailerService) sendEmail(to string) {
+func (ms *MailerService) SendEmail(to string) {
 	message := mail.NewMessage()
 	message.SetHeader("From", ms.sender)
 	message.SetHeader("To", to)
@@ -76,29 +74,4 @@ func (ms *MailerService) sendEmail(to string) {
 	message.AddAlternative("text/html", ms.currencyTemplates["htmlBody"])
 
 	ms.jobsChan <- message
-}
-
-func (ms *MailerService) HandleMessage(message mailer.Message[json.RawMessage]) error {
-	switch message.Type {
-	case mailer.ExchangeRateUpdated:
-		updateEvent := mailer.ExchangeRateUpdatedEvent{}
-		err := json.Unmarshal(message.Payload, &updateEvent)
-		if err != nil {
-			return err
-		}
-		err = ms.updateCurrencyRateTemplates(updateEvent.Rate)
-		if err != nil {
-			return err
-		}
-	case mailer.SendEmailNotification:
-		sendCommand := mailer.SendEmailNotificationCommand{}
-		err := json.Unmarshal(message.Payload, &sendCommand)
-		if err != nil {
-			return err
-		}
-		ms.sendEmail(sendCommand.Email)
-	default:
-		return errors.New("unknown message type")
-	}
-	return nil
 }
