@@ -1,11 +1,10 @@
 services:
   rabbitmq:
     container_name: rabbitmq
-    image: rabbitmq:3-management
+    image: rabbitmq:3
     restart: always
     ports:
       - 5672:5672
-      - 15672:15672
     healthcheck:
       test: rabbitmq-diagnostics -q ping
       interval: 15s
@@ -21,9 +20,8 @@ services:
       - POSTGRES_HOST=localhost
     ports:
       - 5432:5432
-    
     volumes:
-      - ./initsqlscripts/:/docker-entrypoint-initdb.d/
+      - ./initial-setup-db.sql:/docker-entrypoint-initdb.d/init.sql 
       - db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -44,19 +42,6 @@ services:
       - EXCHANGER_RABBITMQ_CONN_STRING=amqp://guest:guest@rabbitmq:5672
     depends_on:
       rabbitmq:
-        condition: service_healthy
-  customers:
-    container_name: customers-service
-    build:
-      context: ./
-      dockerfile: ./cmd/customers/Dockerfile
-    environment:
-      - EXCHANGER_RABBITMQ_CONN_STRING=amqp://guest:guest@rabbitmq:5672
-      - EXCHANGER_CUSTOMERS_DSN=postgres://customers_service:pa55word@exchanger_db/customers_service?sslmode=disable
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-      db:
         condition: service_healthy
         
   api:

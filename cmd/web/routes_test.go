@@ -92,8 +92,8 @@ func (sets *SubscribeEndpointTestSuite) SetupSuite() {
 		t.Fatal(err)
 	}
 
-	postgresRepo := &repositories.PostgresSubscriptionRepository{DB: db}
-	emailService := services.NewSubscriptionService(postgresRepo)
+	postgresRepo := &repositories.PostgresEmailRepository{DB: db}
+	emailService := services.NewEmailService(postgresRepo)
 
 	app := application{
 		emailService: emailService,

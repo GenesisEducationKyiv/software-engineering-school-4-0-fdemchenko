@@ -13,7 +13,7 @@ import (
 )
 
 type EmailService interface {
-	Create(email string) (int, error)
+	Create(email string) error
 	GetAll() ([]string, error)
 }
 
@@ -40,8 +40,8 @@ func (em *EmailServiceSuite) SetupSuite() {
 		t.Fatal(err)
 	}
 
-	repo := &repositories.PostgresSubscriptionRepository{DB: db}
-	em.emailService = services.NewSubscriptionService(repo)
+	repo := &repositories.PostgresEmailRepository{DB: db}
+	em.emailService = services.NewEmailService(repo)
 }
 
 func (em *EmailServiceSuite) TearDownTest() {
@@ -52,25 +52,25 @@ func (em *EmailServiceSuite) TearDownTest() {
 }
 
 func (em *EmailServiceSuite) TestCreateEmail_Success() {
-	_, err := em.emailService.Create("someemail@gmail.com")
+	err := em.emailService.Create("someemail@gmail.com")
 	assert.NoError(em.T(), err)
 }
 
 func (em *EmailServiceSuite) TestCreateEmail_Duplicate() {
 	t := em.T()
-	_, err := em.emailService.Create("somemail@gmail.com")
+	err := em.emailService.Create("somemail@gmail.com")
 	assert.NoError(t, err)
 
-	_, err = em.emailService.Create("somemail@gmail.com")
+	err = em.emailService.Create("somemail@gmail.com")
 	assert.ErrorIs(t, err, repositories.ErrDuplicateEmail)
 }
 
 func (em *EmailServiceSuite) TestGetEmails() {
 	t := em.T()
-	_, err := em.emailService.Create("somemail1@gmail.com")
+	err := em.emailService.Create("somemail1@gmail.com")
 	assert.NoError(t, err)
 
-	_, err = em.emailService.Create("another@gmail.com")
+	err = em.emailService.Create("another@gmail.com")
 	assert.NoError(t, err)
 
 	emails, err := em.emailService.GetAll()

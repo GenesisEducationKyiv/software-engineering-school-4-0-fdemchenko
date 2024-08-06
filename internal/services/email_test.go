@@ -8,59 +8,52 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type SubscriptonsRepositoryMock struct {
+type EmailRepositoryMock struct {
 	emails []string
 }
 
-func (er *SubscriptonsRepositoryMock) GetAll() ([]string, error) {
+func (er *EmailRepositoryMock) GetAll() ([]string, error) {
 	return er.emails, nil
 }
 
-func (er *SubscriptonsRepositoryMock) Insert(email string) (int, error) {
+func (er *EmailRepositoryMock) Insert(email string) error {
 	if slices.Contains(er.emails, email) {
-		return 0, repositories.ErrDuplicateEmail
+		return repositories.ErrDuplicateEmail
 	}
 	er.emails = append(er.emails, email)
-	return 0, nil
-}
-
-func (er *SubscriptonsRepositoryMock) DeleteByEmail(email string) error {
 	return nil
 }
 
-func (er *SubscriptonsRepositoryMock) DeleteByID(id int) error {
-	return nil
-}
 func TestEmailService_CreateEmails(t *testing.T) {
-	emailRepo := new(SubscriptonsRepositoryMock)
+	emailRepo := new(EmailRepositoryMock)
 	emails := []string{"example@mail.com", "school@edu.ua"}
 
-	emailService := NewSubscriptionService(emailRepo)
+	emailService := NewEmailService(emailRepo)
 	for _, newEmail := range emails {
-		_, err := emailService.Create(newEmail)
+		err := emailService.Create(newEmail)
 		assert.NoError(t, err)
 	}
 }
 
 func TestEmailService_CaseInsensitiveness(t *testing.T) {
-	emailRepo := new(SubscriptonsRepositoryMock)
+	emailRepo := new(EmailRepositoryMock)
 	emails := []string{"example@mail.com", "EXamPlE@maIl.Com"}
 
-	emailService := NewSubscriptionService(emailRepo)
-	_, err := emailService.Create(emails[0])
+	emailService := NewEmailService(emailRepo)
+	err := emailService.Create(emails[0])
 	assert.NoError(t, err)
 
-	_, err = emailService.Create(emails[1])
+	err = emailService.Create(emails[1])
 	assert.ErrorIs(t, err, repositories.ErrDuplicateEmail)
 }
 
 func TestEmailService_GetEmails(t *testing.T) {
-	emailRepo := new(SubscriptonsRepositoryMock)
+	emailRepo := new(EmailRepositoryMock)
 	emails := []string{"example@mail.com", "school@edu.ua"}
 
-	emailService := NewSubscriptionService(emailRepo)
+	emailService := NewEmailService(emailRepo)
 	for _, newEmail := range emails {
-		_, err := emailService.Create(newEmail)
+		err := emailService.Create(newEmail)
 		assert.NoError(t, err)
 	}
 
@@ -70,15 +63,15 @@ func TestEmailService_GetEmails(t *testing.T) {
 }
 
 func TestEmailService_CreateDuplicateEmail(t *testing.T) {
-	emailRepo := new(SubscriptonsRepositoryMock)
+	emailRepo := new(EmailRepositoryMock)
 	emails := []string{"example@mail.com", "school@edu.ua"}
 
-	emailService := NewSubscriptionService(emailRepo)
+	emailService := NewEmailService(emailRepo)
 	for _, newEmail := range emails {
-		_, err := emailService.Create(newEmail)
+		err := emailService.Create(newEmail)
 		assert.NoError(t, err)
 	}
 
-	_, err := emailService.Create(emails[0])
+	err := emailService.Create(emails[0])
 	assert.Equal(t, err, repositories.ErrDuplicateEmail)
 }

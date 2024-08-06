@@ -9,6 +9,7 @@ linters:
     - unused
     - gosec
     - dupl
+    - cyclop
     - nilnil
     - nilerr
     - gocyclo
