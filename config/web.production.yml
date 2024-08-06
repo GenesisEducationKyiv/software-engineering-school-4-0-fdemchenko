@@ -1,0 +1,9 @@
+env: production
+rate-cache-ttl: 15m
+
+http-server:
+  addr: :8080
+  timeout: 10s
+
+data-store:
+  max-connections: 20

@@ -1,0 +1,13 @@
+env: produdction
+scheduler-cron: 0 0 10 * * *
+
+http-server:
+  addr: :8080
+  timeout: 5s
+
+smtp-server:
+  host: some.smtp.host
+  username: walterwhite
+  password: saymyname
+  sender: exchangerteam@email.com
+  connection-pool-size: 3
