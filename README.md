@@ -9,9 +9,16 @@
 
 ## Running application
 
-Edit `docker-compose.yml` file and put your SMTP credentials, to be able to send updates to subscribers
+### Local
+Create set of local configuration files (use `config/*.pruduction.yml` as an example) with development values. Then create `docker-compose.local.yml` to add configation specific directives to core `docker-compose.yml` file.
 
-To start http server and PostgreSQL service run: - `docker compose up`
+`docker compose -f docker-compose.yml -f docker-compose.local.yml --build`
+
+### Production
+Edit set of configuration files (`config/*.pruduction.yml`), put there your SMTP credentials and so on. 
+Edit `docker-compose.production.yml` to change environment variables values for DB and RabbitMQ.
+
+`docker compose -f docker-compose.yml -f docker-compose.production.yml --build`
 
 ## Metrics
 
