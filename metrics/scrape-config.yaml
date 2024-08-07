@@ -1,0 +1,14 @@
+global:
+  # how frequent to scrape targets.
+  # 1s means app metrics will be scraped every 1s.
+  scrape_interval: 1s
+scrape_configs:
+  - job_name: 'exchanger'
+    static_configs:
+      - targets: ['api:8080']
+  - job_name: 'mailer'
+    static_configs:
+      - targets: ['mailer:8080']
+  - job_name: 'custmers'
+    static_configs:
+      - targets: ['customers:8080']

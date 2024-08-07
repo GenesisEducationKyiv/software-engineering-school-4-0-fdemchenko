@@ -1,0 +1,8 @@
+env: local
+
+http-server:
+  addr: :8080
+  timeout: 10s
+
+data-store:
+  max-connections: 20

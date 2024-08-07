@@ -1,0 +1,81 @@
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - 5672:5672
+      - 15672:15672
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      timeout: 15s
+      retries: 3
+  db:
+    image: postgres:14.1-alpine
+    container_name: exchanger_db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST=localhost
+    ports:
+      - 5432:5432
+    
+    volumes:
+      - ./initsqlscripts/:/docker-entrypoint-initdb.d/
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  mailer:
+    container_name: mailer-service
+    build:
+      context: ./
+      dockerfile: ./cmd/mailer/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+  customers:
+    container_name: customers-service
+    build:
+      context: ./
+      dockerfile: ./cmd/customers/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+        
+  api:
+    container_name: exchanger-api
+    build:
+      context: ./
+    image: exchanger-api
+    depends_on:
+      db:
+        condition: service_healthy  
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    links:
+      - db
+  vm:
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics
+    ports:
+      - 8428:8428
+    volumes:
+      - ./metrics/scrape-config.yaml:/etc/config.yaml
+    command: -promscrape.config=/etc/config.yaml
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+volumes:
+  db:
+    driver: local
