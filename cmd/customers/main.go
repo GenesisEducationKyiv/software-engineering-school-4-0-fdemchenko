@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -9,10 +8,12 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	customersconfig "github.com/fdemchenko/exchanger/cmd/customers/internal/config"
 	"github.com/fdemchenko/exchanger/cmd/customers/internal/data"
 	"github.com/fdemchenko/exchanger/cmd/customers/internal/messaging"
 	"github.com/fdemchenko/exchanger/internal/communication/customers"
 	"github.com/fdemchenko/exchanger/internal/communication/rabbitmq"
+	"github.com/fdemchenko/exchanger/internal/config"
 	"github.com/fdemchenko/exchanger/internal/database"
 	"github.com/fdemchenko/exchanger/migrations"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -20,33 +21,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type config struct {
-	db struct {
-		dsn                string
-		maxOpenConnections int
-	}
-	rabbitMQConnString string
-	addr               string
-}
-
-const (
-	DefaultMaxDBConnections = 10
-	ReadHeaderTimeout       = 5 * time.Second
-)
-
 func main() {
-	var cfg config
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("EXCHANGER_CUSTOMERS_DSN"), "Data source name")
-	flag.IntVar(&cfg.db.maxOpenConnections, "db-max-conn", DefaultMaxDBConnections, "Database max connection")
-	flag.StringVar(&cfg.addr, "http-addr", ":8080", "HTTP listening addr")
-	flag.StringVar(&cfg.rabbitMQConnString,
-		"rabbitmq-conn-string",
-		os.Getenv("EXCHANGER_RABBITMQ_CONN_STRING"),
-		"RabbitMQ connection string",
-	)
+	cfg := config.MustLoad[customersconfig.Config](os.Getenv("CUSTOMERS_CONFIG_PATH"))
 
 	zerolog.TimeFieldFormat = time.RFC3339
-	db, err := database.OpenDB(cfg.db.dsn, database.Options{MaxOpenConnections: cfg.db.maxOpenConnections})
+	db, err := database.OpenDB(cfg.DB.DSN, database.Options{MaxOpenConnections: cfg.DB.MaxConnections})
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -58,7 +37,7 @@ func main() {
 	}
 	log.Info().Msg("Migrations successfully applied")
 
-	rabbitMQConn, err := amqp.Dial(cfg.rabbitMQConnString)
+	rabbitMQConn, err := amqp.Dial(cfg.RabbitMQConnString)
 	if err != nil {
 		log.Fatal().Err(err).Send()
 	}
@@ -89,9 +68,9 @@ func main() {
 		metrics.WritePrometheus(w, false)
 	})
 	s := http.Server{
-		Addr:              cfg.addr,
+		Addr:              cfg.HTTPServer.Addr,
 		Handler:           mux,
-		ReadHeaderTimeout: ReadHeaderTimeout,
+		ReadHeaderTimeout: cfg.HTTPServer.Timeout,
 	}
 	go func() {
 		err := s.ListenAndServe()

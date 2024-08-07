@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/fdemchenko/exchanger/cmd/web/internal/repositories"
 	"github.com/fdemchenko/exchanger/internal/communication"
 	"github.com/fdemchenko/exchanger/internal/communication/customers"
-	"github.com/fdemchenko/exchanger/internal/repositories"
 	"github.com/fdemchenko/exchanger/internal/validator"
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog/log"

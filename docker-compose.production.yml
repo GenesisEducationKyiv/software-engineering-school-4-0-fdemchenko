@@ -1,0 +1,21 @@
+services:
+  mailer:
+    volumes:
+      - ./config/mailer.production.yml:/config.yml
+    command: --config-path=/config.yml
+    environment:
+      - MAILER_RABBITMQ_CONN_STR=amqp://guest:guest@rabbitmq:5672
+  customers:
+    volumes:
+      - ./config/customers.production.yml:/config.yml
+    command: --config-path=/config.yml
+    environment:
+      - CUSTOMERS_RABBITMQ_CONN_STR=amqp://guest:guest@rabbitmq:5672
+      - CUSTOMERS_DSN=postgres://customers_service:pa55word@exchanger_db/customers_service?sslmode=disable
+  api:
+    volumes:
+      - ./config/web.production.yml:/config.yml
+    command: --config-path=/config.yml
+    environment:
+      - RATE_RABBITMQ_CONN_STR=amqp://guest:guest@rabbitmq:5672
+      - RATE_DSN=postgres://exchanger:pa55word@exchanger_db/exchanger?sslmode=disable

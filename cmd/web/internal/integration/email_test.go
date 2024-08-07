@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/fdemchenko/exchanger/internal/repositories"
-	"github.com/fdemchenko/exchanger/internal/services"
+	"github.com/fdemchenko/exchanger/cmd/web/internal/repositories"
+	"github.com/fdemchenko/exchanger/cmd/web/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"

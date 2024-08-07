@@ -3,9 +3,9 @@ package messaging
 import (
 	"encoding/json"
 
+	"github.com/fdemchenko/exchanger/cmd/web/internal/repositories"
 	"github.com/fdemchenko/exchanger/internal/communication"
 	"github.com/fdemchenko/exchanger/internal/communication/customers"
-	"github.com/fdemchenko/exchanger/internal/repositories"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
 )

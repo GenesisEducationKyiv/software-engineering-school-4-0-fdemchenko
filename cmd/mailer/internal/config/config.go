@@ -1,52 +1,27 @@
 package config
 
 import (
-	"flag"
-	"os"
 	"time"
 )
 
 type Config struct {
-	SMTP               SMTPConfig
-	RabbitMQConnString string
-	HTTPAddr           string
+	SMTPServer         SMTPServer `yaml:"smtp-server"`
+	HTTPServer         HTTPServer `yaml:"http-server"`
+	Env                string     `yaml:"env"`
+	RabbitMQConnString string     `yaml:"rabbitmq-addr" env:"MAILER_RABBITMQ_CONN_STR" env-required:"true"`
+	SchedulerCRON      string     `yaml:"scheduler-cron" env-default:"0 0 10 * * *"`
 }
 
-type SMTPConfig struct {
-	Host               string
-	Username           string
-	Port               int
-	Password           string
-	Sender             string
-	ConnectionPoolSize int
+type HTTPServer struct {
+	Addr    string        `yaml:"addr"`
+	Timeout time.Duration `yaml:"timeout" env-default:"5s"`
 }
 
-const (
-	DefaultSMTPPort                 = 25
-	DefaultRabbitMQPort             = 5672
-	DefaultMailerConnectionPoolSize = 3
-	DefaultSchedulerInterval        = 24 * time.Hour
-)
-
-func LoadConfig() Config {
-	var cfg Config
-	flag.StringVar(&cfg.HTTPAddr, "http-addr", ":8080", "HTTP listening addr")
-	flag.StringVar(&cfg.SMTP.Host, "smtp-host", os.Getenv("EXCHANGER_SMTP_HOST"), "Smtp host")
-	flag.IntVar(&cfg.SMTP.Port, "smtp-port", DefaultSMTPPort, "Smtp port")
-	flag.IntVar(&cfg.SMTP.ConnectionPoolSize,
-		"smtp-connections",
-		DefaultMailerConnectionPoolSize,
-		"Smtp connection pool size",
-	)
-	flag.StringVar(&cfg.SMTP.Username, "smtp-username", os.Getenv("EXCHANGER_SMTP_USERNAME"), "Smtp username")
-	flag.StringVar(&cfg.SMTP.Password, "smtp-password", os.Getenv("EXCHANGER_SMTP_PASSWORD"), "Smtp password")
-	flag.StringVar(&cfg.SMTP.Sender, "smtp-sender", os.Getenv("EXCHANGER_SMTP_SENDER"), "Smtp sender")
-
-	flag.StringVar(&cfg.RabbitMQConnString,
-		"rabbitmq-conn-string",
-		os.Getenv("EXCHANGER_RABBITMQ_CONN_STRING"),
-		"RabbitMQ connection string",
-	)
-	flag.Parse()
-	return cfg
+type SMTPServer struct {
+	Host               string `yaml:"host" env-required:"true"`
+	Username           string `yaml:"username" env-required:"true"`
+	Port               int    `yaml:"port" env-default:"25"`
+	Password           string `yaml:"password" env-requiered:"true"`
+	Sender             string `yaml:"sender" env-required:"true"`
+	ConnectionPoolSize int    `yaml:"connection-pool-size" env-default:"3"`
 }
